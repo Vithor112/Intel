@@ -3,6 +3,7 @@
 .data
 temp dw ?
 Ten dw 10
+Sixteen dw 16
 pointerChar dw ?
 pointerString dw ?
 StringTemp db 20 dup(0)
@@ -26,6 +27,32 @@ breakLine db CR,LF,"$"
 	lea dx, NomeArquivo
 	call printf_s
 	call open_f
+	lea dx, StringTemp
+	mov ax,0AAH
+	call printn
+	call intToHexString
+	call printf_s
+	lea dx, StringTemp
+	mov ax,2FFAH
+	call printn
+
+	call intToHexString
+	call printf_s
+	lea dx, StringTemp
+	mov ax,0FFAAH
+	call printn
+	call intToHexString
+	call printf_s
+
+		lea dx, StringTemp
+	mov ax,1234H
+	call printn
+	call intToHexString
+	call printf_s
+
+
+
+
 .exit
 
 ;================================================================================================================================================
@@ -44,6 +71,8 @@ breakLine db CR,LF,"$"
 LIMIT_SCAN equ 60
 ; Scanea caracteres do teclado, até um máximo de 60 e os armazena na string apontada por bx
 	scanf proc near
+		push cx
+		push ax
 		mov cx,LIMIT_SCAN                 ;; Limite de Caracteres
 		mov ah,1			  ;; função 1
 input:		int 21h				  ;; Chamada função DOS
@@ -53,13 +82,17 @@ input:		int 21h				  ;; Chamada função DOS
 		inc bx;				  ;; E Incrementa seu ponteiro
 		loop input			 
 end_input:	mov [bx], endString	 	  ;; Coloca o terminador de String no Final da string
+		pop ax
+		pop cx
 		ret
 	scanf endp
 	
 ; Printa a string que está no ponteiro dx, a string precisa terminar com $
 	printf_s proc near
+		push ax
 		mov ah,9		
 		int 21h
+		pop ax
 		ret
 	printf_s endp
 
@@ -100,6 +133,46 @@ toStringInt:
 		pop dx			;; Retorna dx
 		ret
 	intToString endp
+
+
+	;; Converte o inteiro em ax para uma string representando o int em Hexadecimal armazenada em dx
+	intToHexString proc near
+		push dx				;; Salva dx
+		push bp				;; Salva bp
+		push bx				;; Salva bx
+		push cx 			;; Salva cx
+		push ax				;; Salva ax
+		mov bp,dx			
+		mov cx,4	
+		mov bx,1000H		;; Pois 16 bits suportam no máximo um inteiro igual a FFFFH
+		mov dx,0			;; Limpa dx, pois DX:AX/BX
+toHexStringInt:	
+		div bx				;; Divisão de 16 bits/16 bits
+		cmp al,10
+		jl intHandling
+		sub al,10
+		add al,"A"
+		jmp insertHex
+intHandling: add al, "0"			;; Converte o algarismo em char
+insertHex: mov [bp], al		;; Coloca na string 
+		inc bp				;; Incrementa ponteiro
+		mov ax,bx			;; ax = bx
+		mov Temp,dx
+		mov dx,0
+		div Sixteen			;; ax /= 16 ( resto vai ser igual a 0 )
+		mov dx,Temp
+		mov bx,ax			;; bx = ax
+		mov ax,dx			;; Transfere o resto para o dividendo 
+		mov dx,0			;; Limpa o resto
+		loop toHexStringInt
+		mov [bp], endString ;; Coloca o terminador na Strings
+		pop ax			;; Retorna ax
+		pop cx			;; Retorna cx
+		pop bx			;; Retorna bx
+		pop bp			;; Retorna bp
+		pop dx			;; Retorna dx
+		ret
+	intToHexString endp
 
 ;================================================================================================================================================
 ; STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS 
