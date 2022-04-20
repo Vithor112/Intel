@@ -2,16 +2,24 @@
 .stack
 .data
 temp dw ?
+Ten dw 10
 pointerChar dw ?
-FinalTen db 10
 pointerString dw ?
 StringTemp db 20 dup(0)
-Texto1  db "Insira o nome do arquivo:",CR,LF,endString
 NomeArquivo db 61 dup(0)
+
+;================================================================================================================================================
+; CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS 
+;================================================================================================================================================
+
+msgNomeArquivo  db "Insira o nome do arquivo:",CR,LF,endString
 msgError db " Houve um erro ", endString
+breakLine db CR,LF,"$"
+
+
 .code
 .startup
-	lea dx, Texto1
+	lea dx, msgNomeArquivo
 	call printf_s
 	lea bx, NomeArquivo
 	call scanf
@@ -23,6 +31,15 @@ msgError db " Houve um erro ", endString
 ;================================================================================================================================================
 ; IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  
 ;================================================================================================================================================
+
+;; Printa \n
+	printn proc near
+		push dx
+		lea dx, breakLine
+		call printf_s
+		pop dx
+		ret
+	printn endp
 
 LIMIT_SCAN equ 60
 ; Scanea caracteres do teclado, até um máximo de 60 e os armazena na string apontada por bx
@@ -63,11 +80,14 @@ end_input:	mov [bx], endString	 	  ;; Coloca o terminador de String no Final da 
 		mov dx,0			;; Limpa dx, pois DX:AX/BX
 toStringInt:	
 		div bx				;; Divisão de 16 bits/16 bits
-		add ax, "0"			;; Converte o algarismo em char
-		mov [bp], ax		;; Coloca na string 
+		add al, "0"			;; Converte o algarismo em char
+		mov [bp], al		;; Coloca na string 
 		inc bp				;; Incrementa ponteiro
 		mov ax,bx			;; ax = bx
-		div FinalTen		;; ax /= 10 ( resto vai ser igual a 0 )
+		mov Temp,dx
+		mov dx,0
+		div Ten				;; ax /= 10 ( resto vai ser igual a 0 )
+		mov dx,Temp
 		mov bx,ax			;; bx = ax
 		mov ax,dx			;; Transfere o resto para o dividendo 
 		mov dx,0			;; Limpa o resto
@@ -116,7 +136,9 @@ toStringInt:
 	FindendString endp
 
 
-
+;================================================================================================================================================
+; FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  
+;================================================================================================================================================
 
 	getErrorMessage proc near
 		call FindendString 
@@ -139,7 +161,7 @@ toStringInt:
 		int 21h
 		jnc no_error
 		lea dx, msgError
-		call getErrorMessage
+		;call getErrorMessage
 		call printf_s
 no_error:	mov ch, 00H
 		mov cl, endString
