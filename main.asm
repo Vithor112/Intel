@@ -26,30 +26,10 @@ breakLine db CR,LF,"$"
 	call scanf
 	lea dx, NomeArquivo
 	call printf_s
-	call open_f
-	lea dx, StringTemp
-	mov ax,0AAH
 	call printn
-	call intToHexString
-	call printf_s
-	lea dx, StringTemp
-	mov ax,2FFAH
-	call printn
-
-	call intToHexString
-	call printf_s
-	lea dx, StringTemp
-	mov ax,0FFAAH
-	call printn
-	call intToHexString
-	call printf_s
-
-		lea dx, StringTemp
-	mov ax,1234H
-	call printn
-	call intToHexString
-	call printf_s
-
+	call lengthString
+	mov ax,cx
+	call printIntDec
 
 
 
@@ -177,6 +157,18 @@ insertHex: mov [bp], al		;; Coloca na string
 ;================================================================================================================================================
 ; STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS 
 ;================================================================================================================================================
+; Retorna o tamanho da String em dx em cx
+	lengthString proc near
+		push bp
+		mov ch, endString
+		call findChar
+		mov cx,dx
+		sub bp,cx
+		mov cx,bp
+		pop bp
+		ret
+	lengthString endp
+
 
 ; Scannea String em dx pela primeira ocorrência do char em ch e o troca por cl
 ; o Char em ch precisa estar na string! 
@@ -242,6 +234,30 @@ no_error:	mov ch, 00H
 		ret
 	open_f endp
 		
+;================================================================================================================================================
+; DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS 
+;================================================================================================================================================
+; PORQUE NINGUÉM MERECE USAR ESSE CODE VIEW KKKKKKK ( desculpa não gostei )
+
+;; Printa o número em ax como um inteiro decimal
+	printIntDec proc near
+		push dx
+		call intToString
+		call printf_s
+		pop dx
+		ret
+	printIntDec endp
+
+;; Printa o número em ax como um inteiro hexadecimal
+	printIntHex proc near
+		push dx
+		call toHexStringInt
+		call printf_s
+		pop dx
+		ret
+	printIntHex endp
+
+
 
 CR		equ	 13
 endString	equ	 36
