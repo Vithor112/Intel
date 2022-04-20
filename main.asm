@@ -3,7 +3,7 @@
 .data
 Texto1  db "Insira o nome do arquivo:",CR,LF,endString
 NomeArquivo db 61 dup(0)
-msgError db " Deu pau ", endString
+msgError db " Houve um erro ", endString
 .code
 .startup
 	lea dx, Texto1
@@ -36,36 +36,42 @@ end_input:	mov [bx], endString
 		ret
 	printf_s endp
 
-; Converte o endString CL  para o endString CH da string apontado por dx
-	replaceEndString proc near
-		mov al,cl  ; TODO
-		mov di,dx
-	loopStr: scasb
-		jnz loopStr
-		mov al,ch
-		lodsb
-		ret
-	replaceEndString endp
+; Scannea String em dx pela primeira ocorrência do char em ch e o troca por cl
+; o Char em ch precisa estar na string! 
+        scanRep proc near
+                push bp
+                mov bp,dx
+                dec bp
+keepLooking:    inc bp  
+                cmp [bp],ch
+                jne keepLooking
+                mov [bp],cl
+                pop bp
+                ret
+        scanRep endp
 
 ; Abre Arquivo cujo nome está na string apontada por dx, abre em modo de leitura
 	open_f proc near
-		mov cl,endString
-		mov ch,00H
-		call replaceEndString
+		mov ch,endString
+		mov cl,00H
+		call scanRep
 		mov ah,3DH
 		mov al,00
 		int 21h
 		jnc no_error
 		lea dx, msgError
 		call printf_s
-no_error:	ret
+no_error:	mov ch, 00H
+		mov cl, eddndString
+		call scanRep
+		ret
 	open_f endp
 		
 
-CR equ	13
-endString equ 36
-null	equ 00h
-LF equ	10
+CR		equ	 13
+endString	equ	 36
+null		equ 	00h
+LF 		equ	 10
 
 end
 		
