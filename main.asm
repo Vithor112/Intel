@@ -38,20 +38,22 @@ end_input:	mov [bx], endString
 
 ; Converte o endString CL  para o endString CH da string apontado por dx
 	replaceEndString proc near
-		mov al,endString  ; TODO
+		mov al,cl  ; TODO
 		mov di,dx
 	loopStr: scasb
 		jnz loopStr
-		mov al,00H
+		mov al,ch
 		lodsb
 		ret
 	replaceEndString endp
 
 ; Abre Arquivo cujo nome está na string apontada por dx, abre em modo de leitura
 	open_f proc near
+		mov cl,endString
+		mov ch,00H
+		call replaceEndString
 		mov ah,3DH
 		mov al,00
-		call replaceEndString
 		int 21h
 		jnc no_error
 		lea dx, msgError
