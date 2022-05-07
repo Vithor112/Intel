@@ -15,7 +15,7 @@ NomeSaida db 10 dup(0)
 ;================================================================================================================================================
 
 msgNomeArquivo  db "Insira o nome do arquivo:",CR,LF,endString
-msgError db " Houve um erro ", endString
+msgOpeningError db "Ocorreu um erro durante a abertua do arquivo: ", endString
 breakLine db CR,LF,endString
 
 
@@ -27,7 +27,6 @@ teste db ".res", endString
 	lea dx, msgNomeArquivo
 	call printf_s
 	call scanName
-	lea dx, NomeArquivo
 	call printf_s
 
 
@@ -40,14 +39,12 @@ teste db ".res", endString
 
 ;; Ler o nome do arquivo e armazenar o nome de saída
 	scanName proc near
-		lea bx, NomeArquivo
+		lea dx, NomeArquivo
 		call scanf
 		mov ah,SEPARADOR
 		mov al, endString
-		lea dx, NomeArquivo
 		call scanRep
 		lea bx, teste
-		lea dx, NomeArquivo
 		call appendString
 		ret	
 	scanName endp
@@ -68,10 +65,12 @@ teste db ".res", endString
 
 LIMIT_SCAN equ 60
 ;; TODO bug backspace and limit
-; Scanea caracteres do teclado, até um máximo de 60 e os armazena na string apontada por bx
+; Scanea caracteres do teclado, até um máximo de 60 e os armazena na string apontada por dx
 	scanf proc near
+		push bx
 		push cx
 		push ax
+		mov bx,dx
 		mov cx,LIMIT_SCAN                 ;; Limite de Caracteres
 		mov ah,1			  ;; função 1
 input:		int 21h				  ;; Chamada função DOS
@@ -83,6 +82,7 @@ input:		int 21h				  ;; Chamada função DOS
 end_input:	mov [bx], endString	 	  ;; Coloca o terminador de String no Final da string
 		pop ax
 		pop cx
+		pop bx
 		ret
 	scanf endp
 	
@@ -214,7 +214,7 @@ pulaScanRep: pop bp
 	scanRep endp
 
 		
-;; Encontra a primeira ocorrÊncia do char em ah na string em dx e retorna um ponteiro para este char em bp e zera CF, se não encontrar liga CF
+;; Encontra a primeira ocorrência do char em ah na string em dx e retorna um ponteiro para este char em bp e zera CF, se não encontrar liga CF
 	findChar  proc near  
 				call lengthString
                 mov bp,dx			;; bp = dx
@@ -244,14 +244,15 @@ finalFindChar:  clc						;; Limpa CF se encontrar
 ;================================================================================================================================================
 ; FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  FILE FUNCS  
 ;================================================================================================================================================
-
+	;; Coloca o código de erro em AX no final da string em dx. 
 	getErrorMessage proc near
+		push dx
 		call findEndString 
 		mov byte ptr [bp], SPACE
 		inc bp
-		lea dx, StringTemp 
+		mov dx, bp 
 		call intToString 
-		;; TODO
+		pop dx
 		ret
 	getErrorMessage endp
 
@@ -265,8 +266,8 @@ finalFindChar:  clc						;; Limpa CF se encontrar
 		mov al,00
 		int 21h
 		jnc no_error
-		lea dx, msgError
-		;call getErrorMessage
+		lea dx, msgOpeningError
+		call getErrorMessage
 		call printf_s
 no_error:	mov ah, 00H
 		mov al, endString
