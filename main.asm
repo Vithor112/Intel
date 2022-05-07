@@ -19,13 +19,11 @@ NomeSaida db 10 dup(0)
 ; CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS 
 ;================================================================================================================================================
 
-msgNomeArquivo  db "Insira o nome do arquivo:",CR,LF,endString
-msgOpeningError db "Ocorreu um erro durante a abertura do arquivo: ", endString
-breakLine db CR,LF,endString
-fimds db "Arquivo terminou :(", endString
-
-
-teste db ".res", endString
+msgNomeArquivo  db "Insira o nome do arquivo:",CR,LF,ENDSTRING
+msgOpeningError db "Ocorreu um erro durante a abertura do arquivo: ", ENDSTRING
+breakLine db CR,LF,ENDSTRING
+fimds db "Arquivo terminou :(", ENDSTRING
+extensaoSaida db ".res", ENDSTRING
 
 
 .code
@@ -55,10 +53,10 @@ fim: lea dx, fimds
 	scanName proc near
 		lea dx, NomeArquivo
 		call scanf
-		mov ah,SEPARADOR
-		mov al, endString
+		mov ah, SEPARADOR
+		mov al, ENDSTRING
 		call scanRep
-		lea bx, teste
+		lea bx, extensaoSaida
 		call appendString
 		ret	
 	scanName endp
@@ -78,22 +76,28 @@ fim: lea dx, fimds
 	printn endp
 
 LIMIT_SCAN equ 60
-;; TODO bug backspace and limit
 ; Scanea caracteres do teclado, até um máximo de 60 e os armazena na string apontada por dx
 	scanf proc near
 		push bx
 		push cx
 		push ax
 		mov bx,dx
-		mov cx,LIMIT_SCAN                 ;; Limite de Caracteres
-		mov ah,1			  ;; função 1
-input:		int 21h				  ;; Chamada função DOS
-		cmp al,CR			  ;; Verifica se recebeu um enter como entrada
-		jz end_input			  ;; Se sim Termina de receber input
-		mov [bx],al			  ;; Se não coloca o char na string
-		inc bx;				  ;; E Incrementa seu ponteiro
+		mov cx, LIMIT_SCAN          ;; Limite de Caracteres
+		mov ah, 1			  		;; função 1
+input:	int 21h				  		;; Chamada função DOS
+		cmp al, CR			  		;; Verifica se recebeu um enter como entrada
+		jz end_input			  	;; Se sim Termina de receber input
+		cmp al, BACKSPACE
+		jne charNormal
+		cmp bx,dx
+		je input
+		inc cx
+		dec bx
+		jmp input
+charNormal: mov [bx],al			  	;; Se não coloca o char na string
+		inc bx;				  		;; E Incrementa seu ponteiro
 		loop input			 
-end_input:	mov [bx], endString	 	  ;; Coloca o terminador de String no Final da string
+end_input:	mov [bx], ENDSTRING	 	;; Coloca o terminador de String no Final da string
 		pop ax
 		pop cx
 		pop bx
@@ -138,7 +142,7 @@ toStringInt:
 		mov ax,dx			;; Transfere o resto para o dividendo 
 		mov dx,0			;; Limpa o resto
 		loop toStringInt
-		mov byte ptr [bp], endString ;; Coloca o terminador na Strings
+		mov byte ptr [bp], ENDSTRING ;; Coloca o terminador na Strings
 		pop ax			;; Retorna ax
 		pop cx			;; Retorna cx
 		pop bx			;; Retorna bx
@@ -156,7 +160,7 @@ toStringInt:
 		push cx 			;; Salva cx
 		push ax				;; Salva ax
 		mov bp,dx			
-		mov cx,4	
+		mov cx,4	;; TODO 2 OPTIONS (2 BYTE AND 1 BYTE)
 		mov bx,1000H		;; Pois 16 bits suportam no máximo um inteiro igual a FFFFH
 		mov dx,0			;; Limpa dx, pois DX:AX/BX
 toHexStringInt:	
@@ -178,7 +182,7 @@ insertHex: mov byte ptr [bp], al		;; Coloca na string
 		mov ax,dx			;; Transfere o resto para o dividendo 
 		mov dx,0			;; Limpa o resto
 		loop toHexStringInt
-		mov byte ptr [bp], endString ;; Coloca o terminador na Strings
+		mov byte ptr [bp], ENDSTRING ;; Coloca o terminador na Strings
 		pop ax			;; Retorna ax
 		pop cx			;; Retorna cx
 		pop bx			;; Retorna bx
@@ -198,16 +202,16 @@ loopssa: mov al, [bx]
 		mov byte ptr [bp], al
 		inc bx
 		inc bp
-		cmp byte ptr [bx], endString
+		cmp byte ptr [bx], ENDSTRING
 		jne loopssa
-		mov byte ptr [bp], endString
+		mov byte ptr [bp], ENDSTRING
 		ret 
 	appendString endp
 
 ; Retorna o tamanho da String em dx em cx
 	lengthString proc near
 		push bp
-		mov ch, endString
+		mov ch, ENDSTRING
 		call findEndString
 		mov cx,dx
 		sub bp,cx
@@ -249,7 +253,7 @@ finalFindChar:  clc						;; Limpa CF se encontrar
                 mov bp,dx			;; bp = dx
                 dec bp				;; bp-- ( ajustar para o primeiro loop )
 	lookFinal:   inc bp				;; inc++
-                cmp byte ptr [bp],endString			
+                cmp byte ptr [bp],ENDSTRING			
                 jne lookFinal		;; Se iguais termina
 				ret
 	findEndString endp
@@ -273,8 +277,8 @@ finalFindChar:  clc						;; Limpa CF se encontrar
 
 ; Abre Arquivo cujo nome está na string apontada por dx, abre em modo de leitura e armazena o handler em ax
 	fopen proc near
-		mov ah,endString
-		mov al,00H
+		mov ah,ENDSTRING
+		mov al,NULL
 		call scanRep
 		mov ah,3DH
 		mov al,00
@@ -284,8 +288,8 @@ finalFindChar:  clc						;; Limpa CF se encontrar
 		call getErrorMessage
 		call printf_s
 no_error: push ax
-		mov ah, 00H
-		mov al, endString
+		mov ah, NULL
+		mov al, ENDSTRING
 		call scanRep
 		pop ax
 		ret
@@ -337,11 +341,12 @@ fimArquivo: stc 			;; Seta CF
 	printIntHex endp
 
 
-SEPARADOR equ 46
-CR		equ	 13
-endString	equ	 36
-null		equ 	00h
-LF 		equ	 10
-SPACE		equ 	20h
+SEPARADOR 	equ 046
+CR			equ	013
+ENDSTRING	equ	036
+NULL		equ 00h
+LF 			equ	010
+SPACE		equ 20h
+BACKSPACE 	equ 008
 end
 		
