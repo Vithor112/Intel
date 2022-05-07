@@ -1,6 +1,10 @@
 .model small
 .stack
 .data
+coluna1 db 0
+coluna2 db 0
+coluna3 db 0
+coluna4 db 0
 temp dw ?
 Ten dw 10
 Sixteen dw 16
@@ -10,13 +14,15 @@ StringTemp db 20 dup(0)
 NomeArquivo db 61 dup(0)
 NomeSaida db 10 dup(0)
 
+
 ;================================================================================================================================================
 ; CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS 
 ;================================================================================================================================================
 
 msgNomeArquivo  db "Insira o nome do arquivo:",CR,LF,endString
-msgOpeningError db "Ocorreu um erro durante a abertua do arquivo: ", endString
+msgOpeningError db "Ocorreu um erro durante a abertura do arquivo: ", endString
 breakLine db CR,LF,endString
+fimds db "Arquivo terminou :(", endString
 
 
 teste db ".res", endString
@@ -26,9 +32,17 @@ teste db ".res", endString
 .startup
 	lea dx, msgNomeArquivo
 	call printf_s
-	call scanName
+	call scanf
+	call fopen
+	mov bx,ax
+sas: call fread
+	jc fim
+	mov ax,cx
+	call printIntHex
+	call printn
+	jmp sas
+fim: lea dx, fimds
 	call printf_s
-
 
 .exit
 
@@ -257,8 +271,8 @@ finalFindChar:  clc						;; Limpa CF se encontrar
 	getErrorMessage endp
 
 
-; Abre Arquivo cujo nome está na string apontada por dx, abre em modo de leitura
-	open_f proc near
+; Abre Arquivo cujo nome está na string apontada por dx, abre em modo de leitura e armazena o handler em ax
+	fopen proc near
 		mov ah,endString
 		mov al,00H
 		call scanRep
@@ -269,12 +283,36 @@ finalFindChar:  clc						;; Limpa CF se encontrar
 		lea dx, msgOpeningError
 		call getErrorMessage
 		call printf_s
-no_error:	mov ah, 00H
+no_error: push ax
+		mov ah, 00H
 		mov al, endString
 		call scanRep
+		pop ax
 		ret
-	open_f endp
-		
+	fopen endp
+
+; Lê um byte do arquivo em bx e armazena em cx, seta CF se o arquivo terminou   
+	fread proc near
+		push ax
+		push bp
+		push dx				;; Salva registradores
+		lea dx, StringTemp
+		mov cx, 1  			;; Lê um char
+		mov ah,3FH			;; Código Função DOS para ler arquivo 
+		int 21h				;; Função DOS
+		cmp cx,ax			
+		jne fimArquivo		;; Se Bytes Lidos != CX então arquivo terminou
+		mov bp, dx			
+		mov cx, [bp]		;; Move char lido para cx
+		clc
+endFread:pop dx				;; Resgata registradores
+		pop bp
+		pop ax
+		ret
+fimArquivo: stc 			;; Seta CF
+		jmp endFread
+
+	fread endp
 ;================================================================================================================================================
 ; DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS 
 ;================================================================================================================================================
@@ -292,7 +330,7 @@ no_error:	mov ah, 00H
 ;; Printa o número em ax como um inteiro hexadecimal
 	printIntHex proc near
 		push dx
-		call toHexStringInt
+		call intToHexString
 		call printf_s
 		pop dx
 		ret
