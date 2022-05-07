@@ -113,7 +113,7 @@ end_input:	mov [bx], endString	 	  ;; Coloca o terminador de String no Final da 
 toStringInt:	
 		div bx				;; Divisão de 16 bits/16 bits
 		add al, "0"			;; Converte o algarismo em char
-		mov [bp], al		;; Coloca na string 
+		mov byte ptr [bp], al		;; Coloca na string 
 		inc bp				;; Incrementa ponteiro
 		mov ax,bx			;; ax = bx
 		mov Temp,dx
@@ -124,7 +124,7 @@ toStringInt:
 		mov ax,dx			;; Transfere o resto para o dividendo 
 		mov dx,0			;; Limpa o resto
 		loop toStringInt
-		mov [bp], endString ;; Coloca o terminador na Strings
+		mov byte ptr [bp], endString ;; Coloca o terminador na Strings
 		pop ax			;; Retorna ax
 		pop cx			;; Retorna cx
 		pop bx			;; Retorna bx
@@ -153,7 +153,7 @@ toHexStringInt:
 		add al,"A"
 		jmp insertHex
 intHandling: add al, "0"			;; Converte o algarismo em char
-insertHex: mov [bp], al		;; Coloca na string 
+insertHex: mov byte ptr [bp], al		;; Coloca na string 
 		inc bp				;; Incrementa ponteiro
 		mov ax,bx			;; ax = bx
 		mov Temp,dx
@@ -164,7 +164,7 @@ insertHex: mov [bp], al		;; Coloca na string
 		mov ax,dx			;; Transfere o resto para o dividendo 
 		mov dx,0			;; Limpa o resto
 		loop toHexStringInt
-		mov [bp], endString ;; Coloca o terminador na Strings
+		mov byte ptr [bp], endString ;; Coloca o terminador na Strings
 		pop ax			;; Retorna ax
 		pop cx			;; Retorna cx
 		pop bx			;; Retorna bx
@@ -181,12 +181,12 @@ insertHex: mov [bp], al		;; Coloca na string
 	appendString proc near
 		call findEndString
 loopssa: mov al, [bx]
-		mov [bp], al
+		mov byte ptr [bp], al
 		inc bx
 		inc bp
 		cmp byte ptr [bx], endString
 		jne loopssa
-		mov [bp], endString
+		mov byte ptr [bp], endString
 		ret 
 	appendString endp
 
@@ -208,7 +208,7 @@ loopssa: mov al, [bx]
 			push bp
 			call findChar
 			jc pulaScanRep
-			mov [bp],al
+			mov byte ptr [bp],al
 pulaScanRep: pop bp
 			ret
 	scanRep endp
@@ -220,7 +220,7 @@ pulaScanRep: pop bp
                 mov bp,dx			;; bp = dx
                 dec bp				;; bp-- ( ajustar para o primeiro loop )
 	lookChar:   inc bp				;; inc++
-                cmp [bp],ah			
+                cmp byte ptr [bp],ah			
                 je finalFindChar		;; Se iguais termina
 				loop lookChar			;; Caso não forem e não tiver chegado ao final da String, continua
 				stc						;; Seta CF se não encontrar
@@ -247,7 +247,7 @@ finalFindChar:  clc						;; Limpa CF se encontrar
 
 	getErrorMessage proc near
 		call findEndString 
-		mov [bp], SPACE
+		mov byte ptr [bp], SPACE
 		inc bp
 		lea dx, StringTemp 
 		call intToString 
