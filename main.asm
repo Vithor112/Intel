@@ -8,6 +8,7 @@ pointerChar dw ?
 pointerString dw ?
 StringTemp db 20 dup(0)
 NomeArquivo db 61 dup(0)
+NomeSaida db 10 dup(0)
 
 ;================================================================================================================================================
 ; CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS CONSTANTES STRINGS 
@@ -15,25 +16,42 @@ NomeArquivo db 61 dup(0)
 
 msgNomeArquivo  db "Insira o nome do arquivo:",CR,LF,endString
 msgError db " Houve um erro ", endString
-breakLine db CR,LF,"$"
+breakLine db CR,LF,endString
+
+
+teste db ".res", endString
 
 
 .code
 .startup
 	lea dx, msgNomeArquivo
 	call printf_s
-	lea bx, NomeArquivo
-	call scanf
+	call scanName
 	lea dx, NomeArquivo
 	call printf_s
-	call printn
-	call lengthString
-	mov ax,cx
-	call printIntDec
-
 
 
 .exit
+
+
+;================================================================================================================================================
+; FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS 
+;================================================================================================================================================
+
+;; Ler o nome do arquivo e armazenar o nome de saída
+	scanName proc near
+		lea bx, NomeArquivo
+		call scanf
+		mov ah,SEPARADOR
+		mov al, endString
+		lea dx, NomeArquivo
+		call scanRep
+		lea bx, teste
+		lea dx, NomeArquivo
+		call appendString
+		ret	
+	scanName endp
+
 
 ;================================================================================================================================================
 ; IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  
@@ -49,6 +67,7 @@ breakLine db CR,LF,"$"
 	printn endp
 
 LIMIT_SCAN equ 60
+;; TODO bug backspace and limit
 ; Scanea caracteres do teclado, até um máximo de 60 e os armazena na string apontada por bx
 	scanf proc near
 		push cx
@@ -157,11 +176,25 @@ insertHex: mov [bp], al		;; Coloca na string
 ;================================================================================================================================================
 ; STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS 
 ;================================================================================================================================================
+
+; Adiciona String em bx no final da string apontada por dx
+	appendString proc near
+		call findEndString
+loopssa: mov al, [bx]
+		mov [bp], al
+		inc bx
+		inc bp
+		cmp byte ptr [bx], endString
+		jne loopssa
+		mov [bp], endString
+		ret 
+	appendString endp
+
 ; Retorna o tamanho da String em dx em cx
 	lengthString proc near
 		push bp
 		mov ch, endString
-		call findChar
+		call findEndString
 		mov cx,dx
 		sub bp,cx
 		mov cx,bp
@@ -170,35 +203,42 @@ insertHex: mov [bp], al		;; Coloca na string
 	lengthString endp
 
 
-; Scannea String em dx pela primeira ocorrência do char em ch e o troca por cl
-; o Char em ch precisa estar na string! 
+; Scannea String em dx pela primeira ocorrência do char em ah e o troca por al 
 	scanRep proc near
 			push bp
 			call findChar
-			mov [bp],cl
-			pop bp
+			jc pulaScanRep
+			mov [bp],al
+pulaScanRep: pop bp
 			ret
 	scanRep endp
 
 		
-;; Encontra a primeira ocorrÊncia do char em ch na string em dx e retorna um ponteiro para este char em bp
-	findChar  proc near
+;; Encontra a primeira ocorrÊncia do char em ah na string em dx e retorna um ponteiro para este char em bp e zera CF, se não encontrar liga CF
+	findChar  proc near  
+				call lengthString
                 mov bp,dx			;; bp = dx
                 dec bp				;; bp-- ( ajustar para o primeiro loop )
 	lookChar:   inc bp				;; inc++
-                cmp [bp],ch			
-                jne lookChar		;; Se não forem iguais continua procurando
-                ret
+                cmp [bp],ah			
+                je finalFindChar		;; Se iguais termina
+				loop lookChar			;; Caso não forem e não tiver chegado ao final da String, continua
+				stc						;; Seta CF se não encontrar
+				ret
+finalFindChar:  clc						;; Limpa CF se encontrar
+				ret
 	findChar	  endp 
 
 
-;; Retorna um ponteiro para o final da String ( deve terminar com $ )
-	FindendString proc near
-		mov bp, pointerChar
-		mov ch, endString	
-		call findChar
-		ret
-	FindendString endp
+;; Retorna um ponteiro em bp para o final da String em dx ( deve terminar com $ )
+	findEndString proc near
+                mov bp,dx			;; bp = dx
+                dec bp				;; bp-- ( ajustar para o primeiro loop )
+	lookFinal:   inc bp				;; inc++
+                cmp byte ptr [bp],endString			
+                jne lookFinal		;; Se iguais termina
+				ret
+	findEndString endp
 
 
 ;================================================================================================================================================
@@ -206,7 +246,7 @@ insertHex: mov [bp], al		;; Coloca na string
 ;================================================================================================================================================
 
 	getErrorMessage proc near
-		call FindendString 
+		call findEndString 
 		mov [bp], SPACE
 		inc bp
 		lea dx, StringTemp 
@@ -218,8 +258,8 @@ insertHex: mov [bp], al		;; Coloca na string
 
 ; Abre Arquivo cujo nome está na string apontada por dx, abre em modo de leitura
 	open_f proc near
-		mov ch,endString
-		mov cl,00H
+		mov ah,endString
+		mov al,00H
 		call scanRep
 		mov ah,3DH
 		mov al,00
@@ -228,8 +268,8 @@ insertHex: mov [bp], al		;; Coloca na string
 		lea dx, msgError
 		;call getErrorMessage
 		call printf_s
-no_error:	mov ch, 00H
-		mov cl, endString
+no_error:	mov ah, 00H
+		mov al, endString
 		call scanRep
 		ret
 	open_f endp
@@ -258,7 +298,7 @@ no_error:	mov ch, 00H
 	printIntHex endp
 
 
-
+SEPARADOR equ 46
 CR		equ	 13
 endString	equ	 36
 null		equ 	00h
