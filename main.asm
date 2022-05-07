@@ -5,6 +5,9 @@ coluna1 db 0
 coluna2 db 0
 coluna3 db 0
 coluna4 db 0
+handlerInput dw ?
+handlerOutput dw ?
+booleanError db 0
 temp dw ?
 Ten dw 10
 Sixteen dw 16
@@ -45,18 +48,51 @@ extensaoSaida db ".res", ENDSTRING
 ; FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS 
 ;================================================================================================================================================
 
-;; Ler o nome do arquivo e armazenar o nome de saída
+;; Lê o nome do arquivo, armazena em NomeArquivo e armazena o nome de saída em nomeSaida
 	scanName proc near
+		push bx
+		push dx
+		push ax
 		lea dx, NomeArquivo
 		call scanf
+		lea bx, nomeSaida
+		call copyString
+		mov dx, bx
 		mov ah, SEPARADOR
 		mov al, ENDSTRING
 		call scanRep
 		lea bx, extensaoSaida
 		call appendString
+		pop ax
+		pop dx
+		pop bx
 		ret	
 	scanName endp
 
+;; Abre o Arquivo de entrada no modo de Leitura e salva seu Handler ou seta o booleano de erro caso haja um erro
+	openInputFile proc near
+		mov al,0 				;; Modo leitura
+		lea dx, NomeArquivo
+		call fopen
+		jc erroInput
+		mov ax, handlerInput
+		ret 
+erroInput: mov booleanError, 1
+		ret
+	openInputFile endp
+
+
+;; Abre o Arquivo de saida no modo de Escrita e salva seu Handler ou seta o booleano de erro caso haja um erro
+	openOutputFile proc near
+		mov al, 1 				;; Modo escrita
+		lea dx, nomeSaida
+		call fopen
+		jc erroOutput
+		mov ax, handlerOutput
+		ret 
+erroOutput: mov booleanError, 1
+		ret
+	openOutputFile endp
 
 
 ;================================================================================================================================================
@@ -288,13 +324,14 @@ finalFindChar:  clc						;; Limpa CF se encontrar
 	getErrorMessage endp
 
 
-; Abre Arquivo cujo nome está na string apontada por dx, abre em modo de leitura e armazena o handler em ax
+; Abre Arquivo cujo nome está na string apontada por dx, abre em modo especificado em al e armazena o handler em ax
 	fopen proc near
+		push ax
 		mov ah,ENDSTRING
 		mov al,NULL
 		call scanRep
+		pop ax
 		mov ah,3DH
-		mov al,00
 		int 21h
 		jnc no_error
 		lea dx, msgOpeningError
