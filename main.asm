@@ -29,18 +29,14 @@ extensaoSaida db ".res", ENDSTRING
 .code
 .startup
 	lea dx, msgNomeArquivo
+	lea bx, StringTemp
+	call copyString
+	mov bx, dx
 	call printf_s
-	call scanf
-	call fopen
-	mov bx,ax
-sas: call fread
-	jc fim
-	mov ax,cx
-	call printIntHex
 	call printn
-	jmp sas
-fim: lea dx, fimds
+	lea dx, StringTemp
 	call printf_s
+
 
 .exit
 
@@ -60,6 +56,7 @@ fim: lea dx, fimds
 		call appendString
 		ret	
 	scanName endp
+
 
 
 ;================================================================================================================================================
@@ -194,7 +191,23 @@ insertHex: mov byte ptr [bp], al		;; Coloca na string
 ;================================================================================================================================================
 ; STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS STRING FUNCS 
 ;================================================================================================================================================
-
+; Copia String em dx para a string em bx
+	copyString proc near
+		push bp
+		push bx
+		mov bp,dx
+loopCopy: cmp byte ptr [bp], ENDSTRING
+		je fimCopy
+		mov al, byte ptr [bp]
+		mov byte ptr [bx], al
+		inc bp 
+		inc bx
+		jmp loopCopy
+fimCopy: mov byte ptr [bx], ENDSTRING
+		pop bx
+		pop bp
+		ret
+	copyString endp 
 ; Adiciona String em bx no final da string apontada por dx
 	appendString proc near
 		call findEndString
