@@ -7,6 +7,7 @@ coluna2 db 0
 coluna3 db 0
 counter dw 0
 total 	dw 0
+charsLinha dw 0
 handlerInput dw ?
 handlerOutput dw ?
 booleanError db 0
@@ -26,6 +27,7 @@ NomeSaida db 10 dup(0)
 
 msgNomeArquivo  db "Insira o nome do arquivo:",CR,LF,ENDSTRING
 msgOpeningError db "Ocorreu um erro durante a abertura do arquivo: ", ENDSTRING
+msgCreatingError  db "Ocorreu um erro durante a criação do arquivo: ", ENDSTRING
 breakLine db CR,LF,ENDSTRING
 fimds db "Arquivo terminou :(", ENDSTRING
 extensaoSaida db ".res", ENDSTRING
@@ -34,13 +36,14 @@ resultado db "Soma:  ", ENDSTRING
 spaceStr db " ",ENDSTRING
 
 
+
 .code
 .startup
 	lea dx, msgNomeArquivo
 	call printf_s
 	call scanName
 	call openInputFile
-
+	call openOutputFile
 	cmp booleanError, 1
 	je	termina
 	call processaDados
@@ -77,11 +80,43 @@ termina:
 		call printIntHex
 		ret
 	printResultado endp
+
+;; Escreve no formato de 8 chars por linha, recebe uma string em dx
+	writeInFormat proc near
+		push cx
+		push dx
+		push bx
+		mov bx, handlerOutput
+		call lengthString
+		add charsLinha, cx
+		cmp charsLinha, 8
+		jne NoChangeLine
+		mov charsLinha, 0
+		call fwrite
+		lea dx, breakLine
+		mov cx, 2
+NoChangeLine: call fwrite
+		pop bx
+		pop dx
+		pop cx
+		ret	
+	writeInFormat endp
+
 ;; Processa os dados
 	processaDados proc near
 		mov bx, handlerInput
+		mov ch, 0
 loopProcessa: call fread
 		jc fimArquivoProcessa
+		cmp cl,0
+		jl loopProcessa
+		cmp cl, 7EH
+		jg loopProcessa			;; Avalia se é um char ASCII
+		mov ax, cx
+		lea dx, StringTemp
+		call intToHexString
+		call writeInFormat
+
 		cmp counter,0
 		je zero
 		cmp counter,1
@@ -144,8 +179,10 @@ erroInput: mov booleanError, 1
 
 ;; Abre o Arquivo de saida no modo de Escrita e salva seu Handler ou seta o booleano de erro caso haja um erro
 	openOutputFile proc near
-		mov al, 1 				;; Modo escrita
 		lea dx, nomeSaida
+		call fcreate
+		jc erroOutput
+		mov al, 1 				;; Modo escrita
 		call fopen
 		jc erroOutput
 		mov handlerOutput, ax
@@ -153,6 +190,8 @@ erroInput: mov booleanError, 1
 erroOutput: mov booleanError, 1
 		ret
 	openOutputFile endp
+
+;; 
 
 
 ;================================================================================================================================================
@@ -392,6 +431,14 @@ finalFindChar:  clc						;; Limpa CF se encontrar
 		ret
 	getErrorMessage endp
 
+;; Escreve o número de bytes especificado em cx da string em dx no arquivo em bx
+	fwrite proc near
+		push ax
+		mov ah, 40H
+		int 21H
+		pop ax
+		ret
+	fwrite endp
 
 ; Abre Arquivo cujo nome está na string apontada por dx, abre em modo especificado em al e armazena o handler em ax
 	fopen proc near
@@ -416,6 +463,37 @@ no_error: push ax
 		clc
 		ret
 	fopen endp
+
+	; Cria Arquivo cujo nome está na string apontada por dx, abre em modo especificado em al e armazena o handler em ax
+	fcreate proc near
+		push dx
+		push ax
+		push cx
+		mov cx,0
+		mov ah,ENDSTRING
+		mov al,NULL
+		call scanRep
+		mov ah,3CH
+		int 21h
+		jnc no_errorFCreate
+		lea dx, msgCreatingError
+		call getErrorMessage
+		call printf_s
+		pop cx
+		pop ax
+		pop dx
+		stc
+		ret
+no_errorFCreate:
+		mov ah, NULL
+		mov al, ENDSTRING
+		call scanRep
+		pop cx
+		pop ax
+		pop dx
+		clc
+		ret
+	fcreate endp
 
 ; Lê um byte do arquivo em bx e armazena em cl, seta CF se o arquivo terminou   
 	fread proc near
@@ -442,7 +520,6 @@ fimArquivo: stc 			;; Seta CF
 ;================================================================================================================================================
 ; DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS DEBUG FUNCS 
 ;================================================================================================================================================
-; PORQUE NINGUÉM MERECE USAR ESSE CODE VIEW KKKKKKK ( desculpa não gostei )
 
 ;; Printa o número em ax como um inteiro decimal
 	printIntDec proc near
