@@ -1,10 +1,12 @@
 .model small
 .stack
 .data
+coluna0 db 0
 coluna1 db 0
 coluna2 db 0
 coluna3 db 0
-coluna4 db 0
+counter dw 0
+total 	dw 0
 handlerInput dw ?
 handlerOutput dw ?
 booleanError db 0
@@ -27,26 +29,84 @@ msgOpeningError db "Ocorreu um erro durante a abertura do arquivo: ", ENDSTRING
 breakLine db CR,LF,ENDSTRING
 fimds db "Arquivo terminou :(", ENDSTRING
 extensaoSaida db ".res", ENDSTRING
+bytes db "Bytes: ", ENDSTRING
+resultado db "Soma:  ", ENDSTRING
+spaceStr db " ",ENDSTRING
 
 
 .code
 .startup
 	lea dx, msgNomeArquivo
-	lea bx, StringTemp
-	call copyString
-	mov bx, dx
 	call printf_s
-	call printn
-	lea dx, StringTemp
-	call printf_s
+	call scanName
+	call openInputFile
+
+	cmp booleanError, 1
+	je	termina
+	call processaDados
+	call printResultado
 
 
+termina:
 .exit
 
 
 ;================================================================================================================================================
 ; FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS FUNÇÕES ESPECIFICAS 
 ;================================================================================================================================================
+;; Printa Resultado da soma
+	printResultado proc near
+		lea dx, bytes
+		call printf_s
+		mov ax, total
+		call printIntDec
+		call processaDados
+		call printn
+		lea dx, resultado
+		call printf_s
+		mov al, coluna0
+		call printIntHex
+		call printSpace
+		mov al, coluna1
+		call printIntHex
+		call printSpace
+		mov al, coluna2
+		call printIntHex
+		call printSpace
+		mov al, coluna3
+		call printIntHex
+		ret
+	printResultado endp
+;; Processa os dados
+	processaDados proc near
+		mov bx, handlerInput
+loopProcessa: call fread
+		jc fimArquivoProcessa
+		cmp counter,0
+		je zero
+		cmp counter,1
+		je one
+		cmp counter,2
+		je two
+		cmp counter,3
+		add total, 4
+		mov counter, 0
+		add coluna3, cl
+		jmp loopProcessa
+zero:	inc counter
+		add coluna0, cl
+		jmp loopProcessa
+one:	inc counter
+		add coluna1, cl
+		jmp loopProcessa
+two:	inc counter
+		add coluna2, cl
+		jmp loopProcessa
+fimArquivoProcessa: mov ax, counter
+		add total, ax
+		ret
+	processaDados endp
+
 
 ;; Lê o nome do arquivo, armazena em NomeArquivo e armazena o nome de saída em nomeSaida
 	scanName proc near
@@ -75,7 +135,7 @@ extensaoSaida db ".res", ENDSTRING
 		lea dx, NomeArquivo
 		call fopen
 		jc erroInput
-		mov ax, handlerInput
+		mov handlerInput, ax
 		ret 
 erroInput: mov booleanError, 1
 		ret
@@ -88,7 +148,7 @@ erroInput: mov booleanError, 1
 		lea dx, nomeSaida
 		call fopen
 		jc erroOutput
-		mov ax, handlerOutput
+		mov handlerOutput, ax
 		ret 
 erroOutput: mov booleanError, 1
 		ret
@@ -98,6 +158,15 @@ erroOutput: mov booleanError, 1
 ;================================================================================================================================================
 ; IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  
 ;================================================================================================================================================
+
+;; Printa space
+	printSpace proc near
+		push dx
+		lea dx, spaceStr
+		call printf_s
+		pop dx
+		ret
+	printSpace endp
 
 ;; Printa \n
 	printn proc near
@@ -193,8 +262,8 @@ toStringInt:
 		push cx 			;; Salva cx
 		push ax				;; Salva ax
 		mov bp,dx			
-		mov cx,4	;; TODO 2 OPTIONS (2 BYTE AND 1 BYTE)
-		mov bx,1000H		;; Pois 16 bits suportam no máximo um inteiro igual a FFFFH
+		mov cx,2	;; TODO 2 OPTIONS (2 BYTE AND 1 BYTE)
+		mov bx,10H		;; Pois 16 bits suportam no máximo um inteiro igual a FFFFH
 		mov dx,0			;; Limpa dx, pois DX:AX/BX
 toHexStringInt:	
 		div bx				;; Divisão de 16 bits/16 bits
@@ -337,15 +406,18 @@ finalFindChar:  clc						;; Limpa CF se encontrar
 		lea dx, msgOpeningError
 		call getErrorMessage
 		call printf_s
+		stc
+		ret
 no_error: push ax
 		mov ah, NULL
 		mov al, ENDSTRING
 		call scanRep
 		pop ax
+		clc
 		ret
 	fopen endp
 
-; Lê um byte do arquivo em bx e armazena em cx, seta CF se o arquivo terminou   
+; Lê um byte do arquivo em bx e armazena em cl, seta CF se o arquivo terminou   
 	fread proc near
 		push ax
 		push bp
@@ -357,9 +429,9 @@ no_error: push ax
 		cmp cx,ax			
 		jne fimArquivo		;; Se Bytes Lidos != CX então arquivo terminou
 		mov bp, dx			
-		mov cx, [bp]		;; Move char lido para cx
+		mov cl, byte ptr [bp]		;; Move char lido para cx
 		clc
-endFread:pop dx				;; Resgata registradores
+endFread: pop dx				;; Resgata registradores
 		pop bp
 		pop ax
 		ret
