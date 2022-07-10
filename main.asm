@@ -12,13 +12,16 @@ handlerInput dw ?
 handlerOutput dw ?
 booleanError db 0
 temp dw ?
+tempByte db ?
 Ten dw 10
 Sixteen dw 16
+SixteenByte db 16
 pointerChar dw ?
 pointerString dw ?
-StringTemp db 20 dup(0)
-NomeArquivo db 61 dup(0)
-NomeSaida db 10 dup(0)
+StringTemp db 20 dup(?)
+NomeArquivo db 61 dup(?)
+NomeSaida db 10 dup(?)
+ResultadoString db 16 dup(?)
 
 
 ;================================================================================================================================================
@@ -34,6 +37,7 @@ extensaoSaida db ".res", ENDSTRING
 bytes db "Bytes: ", ENDSTRING
 resultado db "Soma:  ", ENDSTRING
 spaceStr db " ",ENDSTRING
+zeroStr db "0", ENDSTRING
 
 
 
@@ -47,6 +51,7 @@ spaceStr db " ",ENDSTRING
 	cmp booleanError, 1
 	je	termina
 	call processaDados
+	call resultadoToString
 	call printResultado
 
 
@@ -63,7 +68,6 @@ termina:
 		call printf_s
 		mov ax, total
 		call printIntDec
-		call processaDados
 		call printn
 		lea dx, resultado
 		call printf_s
@@ -81,6 +85,46 @@ termina:
 		ret
 	printResultado endp
 
+;; Escrevte Resultado no arquivo de saída conforme a especificação
+	resultadoToString proc near 
+		mov al, coluna0
+		call auxResultado
+		mov al, coluna1
+		call auxResultado
+		mov al, coluna2
+		call auxResultado
+		mov al, coluna3
+		call auxResultado
+		ret
+	resultadoToString endp 
+
+;; Auxiliar do ResultadotoString
+	auxResultado proc near
+		lea dx, StringTemp
+		lea bx, zeroStr
+		mov bp,dx
+		mov [bp], ENDSTRING
+		call appendString
+		mov ah, 0
+		mov Temp,dx
+		mov dx,0
+		div SixteenByte
+		mov dx,Temp
+		mov cl,al
+		call hextoChar
+		call findEndString
+		mov [bp], cl
+		inc bp
+		mov [bp],ENDSTRING
+		call writeInFormat
+		mov cl,ah
+		call hextoChar
+		call findEndString
+		dec bp
+		mov [bp], cl
+		call writeInFormat
+		ret
+	auxResultado endp
 ;; Escreve no formato de 8 chars por linha, recebe uma string em dx
 	writeInFormat proc near
 		push cx
@@ -197,6 +241,16 @@ erroOutput: mov booleanError, 1
 ;================================================================================================================================================
 ; IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  IO FUNCS  
 ;================================================================================================================================================
+;; Dado um algarismo em cl em Hexa converte para String 
+	hextoChar proc near
+		cmp cl, 0AH
+		jl inttoChar 
+		sub cl, 0AH
+		add cl, "A"
+		ret
+inttoChar: add cl,"0"
+		ret
+	hextoChar endp
 
 ;; Printa space
 	printSpace proc near
@@ -235,10 +289,10 @@ input:	int 21h				  		;; Chamada função DOS
 		inc cx
 		dec bx
 		jmp input
-charNormal: mov [bx],al			  	;; Se não coloca o char na string
+charNormal: mov byte ptr [bx],al			  	;; Se não coloca o char na string
 		inc bx;				  		;; E Incrementa seu ponteiro
 		loop input			 
-end_input:	mov [bx], ENDSTRING	 	;; Coloca o terminador de String no Final da string
+end_input:	mov  byte ptr [bx], ENDSTRING	 	;; Coloca o terminador de String no Final da string
 		pop ax
 		pop cx
 		pop bx
@@ -301,8 +355,8 @@ toStringInt:
 		push cx 			;; Salva cx
 		push ax				;; Salva ax
 		mov bp,dx			
-		mov cx,2	;; TODO 2 OPTIONS (2 BYTE AND 1 BYTE)
-		mov bx,10H		;; Pois 16 bits suportam no máximo um inteiro igual a FFFFH
+		mov cx,2	
+		mov bx,10H		
 		mov dx,0			;; Limpa dx, pois DX:AX/BX
 toHexStringInt:	
 		div bx				;; Divisão de 16 bits/16 bits
@@ -354,14 +408,16 @@ fimCopy: mov byte ptr [bx], ENDSTRING
 	copyString endp 
 ; Adiciona String em bx no final da string apontada por dx
 	appendString proc near
+		push ax
 		call findEndString
-loopssa: mov al, [bx]
+loopssa: mov al, byte ptr [bx]
 		mov byte ptr [bp], al
 		inc bx
 		inc bp
 		cmp byte ptr [bx], ENDSTRING
 		jne loopssa
 		mov byte ptr [bp], ENDSTRING
+		pop ax
 		ret 
 	appendString endp
 
